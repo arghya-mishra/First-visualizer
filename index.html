@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sorting Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .bar {
+      width: 40px;
+      margin: 2px;
+      display: inline-block;
+      text-align: center;
+      color: white;
+      transition: all 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
+    <h1 class="text-2xl font-bold mb-4">Sorting Visualizer</h1>
+    
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <input id="arrayInput" type="text" placeholder="Enter numbers separated by comma" class="border p-2 rounded flex-1" />
+      
+      <select id="algorithmSelect" class="border p-2 rounded">
+        <option value="bubble">Bubble Sort</option>
+        <option value="insertion">Insertion Sort</option>
+        <option value="selection">Selection Sort</option>
+        <option value="merge">Merge Sort</option>
+        <option value="quick">Quick Sort</option>
+      </select>
+      
+      <button onclick="sortArray('asc')" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Ascending</button>
+      <button onclick="sortArray('desc')" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Descending</button>
+    </div>
+    
+    <div id="visualizer" class="flex items-end h-64 mb-6 gap-2 bg-gray-200 p-2 overflow-x-auto rounded-t-2xl"></div>
+    
+    <h2 class="text-xl font-semibold mb-2">C Code for Selected Algorithm:</h2>
+    <pre id="codeBlock" class="bg-gray-100 p-4 rounded overflow-auto text-sm"></pre>
+  </div>
+
+  <script>
+    const visualizer = document.getElementById('visualizer');
+    const codeBlock = document.getElementById('codeBlock');
+
+    const cCodes = {
+      bubble: `void bubbleSort(int arr[], int n) {
+    int i, j, temp;
+    for (i = 0; i < n-1; i++) {
+        for (j = 0; j < n-i-1; j++) {
+            if (arr[j] > arr[j+1]) {
+                temp = arr[j];
+                arr[j] = arr[j+1];
+                arr[j+1] = temp;
+            }
+        }
+    }
+}`,
+      insertion: `void insertionSort(int arr[], int n) {
+    int i, key, j;
+    for (i = 1; i < n; i++) {
+        key = arr[i];
+        j = i - 1;
+        while (j >= 0 && arr[j] > key) {
+            arr[j + 1] = arr[j];
+            j = j - 1;
+        }
+        arr[j + 1] = key;
+    }
+}`,
+      selection: `void selectionSort(int arr[], int n) {
+    int i, j, min_idx, temp;
+    for (i = 0; i < n-1; i++) {
+        min_idx = i;
+        for (j = i+1; j < n; j++)
+            if (arr[j] < arr[min_idx])
+                min_idx = j;
+        temp = arr[min_idx];
+        arr[min_idx] = arr[i];
+        arr[i] = temp;
+    }
+}`,
+      merge: `void merge(int arr[], int l, int m, int r) {
+    int n1 = m - l + 1;
+    int n2 = r - m;
+    int L[n1], R[n2];
+    for (int i = 0; i < n1; i++) L[i] = arr[l + i];
+    for (int j = 0; j < n2; j++) R[j] = arr[m + 1 + j];
+    int i = 0, j = 0, k = l;
+    while (i < n1 && j < n2) {
+        if (L[i] <= R[j]) arr[k++] = L[i++];
+        else arr[k++] = R[j++];
+    }
+    while (i < n1) arr[k++] = L[i++];
+    while (j < n2) arr[k++] = R[j++];
+}
+void mergeSort(int arr[], int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+        mergeSort(arr, l, m);
+        mergeSort(arr, m+1, r);
+        merge(arr, l, m, r);
+    }
+}`,
+      quick: `int partition(int arr[], int low, int high) {
+    int pivot = arr[high];
+    int i = low - 1, temp;
+    for (int j = low; j <= high-1; j++) {
+        if (arr[j] < pivot) {
+            i++;
+            temp = arr[i]; arr[i] = arr[j]; arr[j] = temp;
+        }
+    }
+    temp = arr[i+1]; arr[i+1] = arr[high]; arr[high] = temp;
+    return i+1;
+}
+void quickSort(int arr[], int low, int high) {
+    if (low < high) {
+        int pi = partition(arr, low, high);
+        quickSort(arr, low, pi-1);
+        quickSort(arr, pi+1, high);
+    }
+}`
+    };                                                                                                                                     
+
+    function visualize(arr, highlight = []) {
+      visualizer.innerHTML = '';
+      arr.forEach((num, idx) => {
+        const bar = document.createElement('div');
+        bar.classList.add('bar');
+        bar.style.height = `${num*3}px`;
+        bar.textContent = num;
+        if (highlight.includes(idx)) {
+          bar.style.backgroundColor = 'orange'; // Highlight color
+        } else {
+          bar.style.backgroundColor = 'blue';
+        }
+        visualizer.appendChild(bar);
+      });
+    }
+
+    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    async function sortArray(order) {
+      let arr = document.getElementById('arrayInput').value.split(',').map(Number);
+      const algorithm = document.getElementById('algorithmSelect').value;
+      codeBlock.textContent = cCodes[algorithm];
+      
+      switch(algorithm) {
+        case 'bubble': await bubbleSort(arr, order); break;
+        case 'insertion': await insertionSort(arr, order); break;
+        case 'selection': await selectionSort(arr, order); break;
+        case 'merge': arr = await mergeSortVisual(arr, 0, arr.length-1, order); break;
+        case 'quick': await quickSortVisual(arr, 0, arr.length-1, order); break;
+      }
+      visualize(arr); // final sorted array
+    }
+
+    async function bubbleSort(arr, order) {
+      let n = arr.length;
+      for (let i = 0; i < n-1; i++) {
+        for (let j = 0; j < n-i-1; j++) {
+          visualize(arr, [j, j+1]);
+          await sleep(300);
+          if ((order==='asc' && arr[j] > arr[j+1]) || (order==='desc' && arr[j] < arr[j+1])) {
+            [arr[j], arr[j+1]] = [arr[j+1], arr[j]];
+            visualize(arr, [j, j+1]);
+            await sleep(300);
+          }
+        }
+      }
+    }
+
+    async function insertionSort(arr, order) {
+      for (let i = 1; i < arr.length; i++) {
+        let key = arr[i];
+        let j = i-1;
+        while (j>=0 && ((order==='asc' && arr[j]>key) || (order==='desc' && arr[j]<key))) {
+          visualize(arr, [j, j+1]);
+          await sleep(300);
+          arr[j+1] = arr[j];
+          j--;
+        }
+        arr[j+1] = key;
+        visualize(arr, [j+1]);
+        await sleep(300);
+      }
+    }
+
+    async function selectionSort(arr, order) {
+      for (let i=0; i<arr.length-1; i++) {
+        let idx = i;
+        for (let j=i+1; j<arr.length; j++) {
+          visualize(arr, [i, j, idx]);
+          await sleep(300);
+          if ((order==='asc' && arr[j]<arr[idx]) || (order==='desc' && arr[j]>arr[idx])) {
+            idx=j;
+          }
+        }
+        [arr[i], arr[idx]] = [arr[idx], arr[i]];
+        visualize(arr, [i, idx]);
+        await sleep(300);
+      }
+    }
+
+    async function mergeSortVisual(arr, l, r, order) {
+      if (l >= r) return arr;
+      let m = l + Math.floor((r-l)/2);
+      arr = await mergeSortVisual(arr, l, m, order);
+      arr = await mergeSortVisual(arr, m+1, r, order);
+      arr = mergeArrays(arr, l, m, r, order);
+      visualize(arr, [...Array(r-l+1).keys()].map(i => i+l));
+      await sleep(500);
+      return arr;
+    }
+
+    function mergeArrays(arr, l, m, r, order) {
+      let left = arr.slice(l, m+1);
+      let right = arr.slice(m+1, r+1);
+      let i=0, j=0, k=l;
+      while (i<left.length && j<right.length) {
+        if ((order==='asc' && left[i]<=right[j]) || (order==='desc' && left[i]>=right[j])) {
+          arr[k++] = left[i++];
+        } else {
+          arr[k++] = right[j++];
+        }
+      }
+      while (i<left.length) arr[k++] = left[i++];
+      while (j<right.length) arr[k++] = right[j++];
+      return arr;
+    }
+
+    async function quickSortVisual(arr, low, high, order) {
+      if (low<high) {
+        let pi = partition(arr, low, high, order);
+        visualize(arr, [pi]);
+        await sleep(500);
+        await quickSortVisual(arr, low, pi-1, order);
+        await quickSortVisual(arr, pi+1, high, order);
+      }
+    }
+
+    function partition(arr, low, high, order) {
+      let pivot = arr[high];
+      let i = low-1;
+      for (let j=low; j<high; j++) {
+        if ((order==='asc' && arr[j]<pivot) || (order==='desc' && arr[j]>pivot)) {
+          i++;
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+      [arr[i+1], arr[high]] = [arr[high], arr[i+1]];
+      return i+1;
+    }
+  </script>
+</body>
+</html>
